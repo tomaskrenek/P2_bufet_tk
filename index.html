@@ -33,6 +33,16 @@ input[type="number"] {
   width: 70px;
   text-align: center;
 }
+input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+label {
+  font-weight: bold;
+}
 #celkem, #pocet {
   text-align: center;
   font-size: 22px;
@@ -43,7 +53,7 @@ input[type="number"] {
 button {
   width: 100%;
   padding: 15px;
-  margin-top: 30px;
+  margin-top: 20px;
   font-size: 24px;
   background: #ff6b35;
   color: white;
@@ -62,12 +72,21 @@ button:hover {
 <h1>SŠ Kostka – OBJEDNÁVKY BUFET</h1>
 
 <div class="container">
+
   <div id="items"></div>
 
   <div id="celkem">Celková cena: 0 Kč</div>
   <div id="pocet">Počet kusů: 0</div>
 
+  <!-- ✅ NOVÁ POVINNÁ POLE -->
+  <label for="jmeno">VAŠE JMÉNO (Příjmení Jméno):</label>
+  <input type="text" id="jmeno" placeholder="Novák Jan" required>
+
+  <label for="telefon">TELEFON:</label>
+  <input type="text" id="telefon" placeholder="+420 123 456 789" required>
+
   <button onclick="odeslatObjednavku()">ODESLAT OBJEDNÁVKU</button>
+
 </div>
 
 <script>
@@ -81,31 +100,25 @@ async function loadCSV() {
     if (!response.ok) {
       throw new Error("Soubor nebyl nalezen");
     }
-
     const text = await response.text();
     parseCSV(text);
     renderItems();
-
   } catch (err) {
     console.error(err);
     alert("Chyba načítání CSV.");
   }
 }
 
-// ✅ parsování CSV (přeskočení hlavičky)
+// ✅ parsování CSV
 function parseCSV(text) {
   items = [];
-
   const lines = text.split("\n");
 
-  // ⬇️ přeskočíme první řádek (hlavičku)
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
-
     if (!line) continue;
 
     const [nazev, cena] = line.split(";");
-
     if (nazev && cena) {
       items.push({
         nazev: nazev.trim(),
@@ -116,13 +129,12 @@ function parseCSV(text) {
   }
 }
 
-// ✅ vykreslení
+// ✅ vykreslení položek
 function renderItems() {
   const container = document.getElementById("items");
   container.innerHTML = "";
 
   items.forEach((item, index) => {
-
     const div = document.createElement("div");
     div.className = "item";
 
@@ -142,7 +154,7 @@ function updateItem(index, value) {
   updateSummary();
 }
 
-// ✅ přepočet
+// ✅ výpočet součtu
 function updateSummary() {
   let celkem = 0;
   let pocet = 0;
@@ -159,18 +171,53 @@ function updateSummary() {
     "Počet kusů: " + pocet;
 }
 
-// ✅ odeslání
+// ✅ MAILTO FUNKCE (HLAVNÍ ČÁST)
 function odeslatObjednavku() {
-  const objednavka = items
-    .filter(item => item.mnozstvi > 0)
-    .map(item => `${item.nazev}: ${item.mnozstvi} ks`);
+
+  const jmeno = document.getElementById("jmeno").value.trim();
+  const telefon = document.getElementById("telefon").value.trim();
+
+  // ✅ kontrola povinných polí
+  if (!jmeno || !telefon) {
+    alert("Vyplň jméno i telefon!");
+    return;
+  }
+
+  const objednavka = items.filter(item => item.mnozstvi > 0);
 
   if (objednavka.length === 0) {
     alert("Nevybral jsi žádné položky!");
     return;
   }
 
-  alert("Objednávka:\n\n" + objednavka.join("\n"));
+  let celkem = 0;
+  let pocet = 0;
+
+  let text = "OBJEDNÁVKA BUFET\n\n";
+  text += "Jméno: " + jmeno + "\n";
+  text += "Telefon: " + telefon + "\n\n";
+
+  text += "Položky:\n";
+
+  objednavka.forEach(item => {
+    const cenaCelkem = item.cena * item.mnozstvi;
+    celkem += cenaCelkem;
+    pocet += item.mnozstvi;
+
+    text += `${item.nazev} - ${item.mnozstvi} ks = ${cenaCelkem.toFixed(2)} Kč\n`;
+  });
+
+  text += "\n-------------------\n";
+  text += "Počet kusů: " + pocet + "\n";
+  text += "Celková cena: " + celkem.toFixed(2) + " Kč\n";
+
+  // ✅ MAILTO – otevře e-mail klienta
+  const mailtoLink =
+    "mailto:krenek.tomas@kostka-skola.cz" +
+    "?subject=" + encodeURIComponent("Objednávka bufet") +
+    "&body=" + encodeURIComponent(text);
+
+  window.location.href = mailtoLink;
 }
 
 // start
@@ -180,4 +227,3 @@ loadCSV();
 
 </body>
 </html>
-``
